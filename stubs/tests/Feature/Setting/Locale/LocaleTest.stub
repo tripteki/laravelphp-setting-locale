@@ -1,0 +1,47 @@
+<?php
+
+namespace Tests\Feature\Setting\Locale;
+
+use Tripteki\Helpers\Traits\UserFactoryTrait;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class LocaleTest extends TestCase
+{
+    use RefreshDatabase, UserFactoryTrait;
+
+    /**
+     * @return void
+     */
+    public function test_users_can_viewAny_locale()
+    {
+        $user = $this->user();
+        $this->actingAs($user);
+
+        $this->test_users_can_update_locale();
+
+        $data = $this->get(/* config("adminer.route.user") ?? */"api"."/locales");
+        $data->assertStatus(200);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_users_can_update_locale()
+    {
+        $admin = $this->post(/* config("adminer.route.admin") ?? */"api/admin"."/locales/languages", [
+
+            "code" => "en",
+            "locale" => "en-US",
+        ]);
+
+        $user = $this->user();
+        $this->actingAs($user);
+
+        $data = $this->put(/* config("adminer.route.user") ?? */"api"."/locales", [
+
+            "code" => "en",
+        ]);
+        $data->assertStatus(201);
+    }
+};
