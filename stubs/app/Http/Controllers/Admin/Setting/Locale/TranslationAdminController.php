@@ -5,12 +5,17 @@ namespace App\Http\Controllers\Admin\Setting\Locale;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Http\JsonResponse;
+use Maatwebsite\Excel\Facades\Excel;
 use Tripteki\SettingLocale\Contracts\Repository\Admin\ISettingLocaleTranslationRepository;
+use App\Imports\Settings\Locales\TranslationImport;
+use App\Exports\Settings\Locales\TranslationExport;
 use App\Http\Requests\Admin\Settings\Locales\Translations\TranslationIndexValidation;
 use App\Http\Requests\Admin\Settings\Locales\Translations\TranslationShowValidation;
 use App\Http\Requests\Admin\Settings\Locales\Translations\TranslationStoreValidation;
 use App\Http\Requests\Admin\Settings\Locales\Translations\TranslationUpdateValidation;
 use App\Http\Requests\Admin\Settings\Locales\Translations\TranslationDestroyValidation;
+use App\Http\Requests\Admin\Settings\Locales\Translations\TranslationFileImportValidation as FileImportValidation;
+use App\Http\Requests\Admin\Settings\Locales\Translations\TranslationFileExportValidation as FileExportValidation;
 use Tripteki\Helpers\Http\Controllers\Controller;
 
 class TranslationAdminController extends Controller
@@ -305,5 +310,118 @@ class TranslationAdminController extends Controller
         }
 
         return iresponse($data, $statecode);
+    }
+
+    /**
+     * @OA\Post(
+     *      path="/admin/locales/languages/{code}/translations-import",
+     *      tags={"Admin Locale Translation"},
+     *      summary="Import",
+     *      @OA\Parameter(
+     *          required=true,
+     *          in="path",
+     *          name="code",
+     *          description="Locale Language's Code."
+     *      ),
+     *      @OA\RequestBody(
+     *          @OA\MediaType(
+     *              mediaType="multipart/form-data",
+     *              @OA\Schema(
+     *                  @OA\Property(
+     *                      property="file",
+     *                      type="file",
+     *                      description="Locale Translation's File."
+     *                  )
+     *              )
+     *          )
+     *      ),
+     *      @OA\Response(
+     *          response=200,
+     *          description="Success."
+     *      ),
+     *      @OA\Response(
+     *          response=422,
+     *          description="Unprocessable Entity."
+     *      )
+     * )
+     *
+     * @param \App\Http\Requests\Admin\Settings\Locales\Translations\TranslationFileImportValidation $request
+     * @param string $code
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function import(FileImportValidation $request, $code)
+    {
+        $form = $request->validated();
+        $data = [];
+        $statecode = 200;
+
+        if ($form["file"]->getClientOriginalExtension() == "csv" || $form["file"]->getClientOriginalExtension() == "txt") {
+
+            $data = Excel::import(new TranslationImport($code), $form["file"], null, \Maatwebsite\Excel\Excel::CSV);
+
+        } else if ($form["file"]->getClientOriginalExtension() == "xls") {
+
+            $data = Excel::import(new TranslationImport($code), $form["file"], null, \Maatwebsite\Excel\Excel::XLS);
+
+        } else if ($form["file"]->getClientOriginalExtension() == "xlsx") {
+
+            $data = Excel::import(new TranslationImport($code), $form["file"], null, \Maatwebsite\Excel\Excel::XLSX);
+        }
+
+        return iresponse($data, $statecode);
+    }
+
+    /**
+     * @OA\Get(
+     *      path="/admin/locales/languages/{code}/translations-export",
+     *      tags={"Admin Locale Translation"},
+     *      summary="Export",
+     *      @OA\Parameter(
+     *          required=true,
+     *          in="path",
+     *          name="code",
+     *          description="Locale Language's Code."
+     *      ),
+     *      @OA\Parameter(
+     *          required=false,
+     *          in="query",
+     *          name="file",
+     *          schema={"type": "string", "enum": {"csv", "xls", "xlsx"}},
+     *          description="Locale Translation's File."
+     *      ),
+     *      @OA\Response(
+     *          response=200,
+     *          description="Success."
+     *      ),
+     *      @OA\Response(
+     *          response=422,
+     *          description="Unprocessable Entity."
+     *      )
+     * )
+     *
+     * @param \App\Http\Requests\Admin\Settings\Locales\Translations\TranslationFileExportValidation $request
+     * @param string $code
+     * @return mixed
+     */
+    public function export(FileExportValidation $request, $code)
+    {
+        $form = $request->validated();
+        $data = [];
+        $statecode = 200;
+
+        if ($form["file"] == "csv") {
+
+            $data = Excel::download(new TranslationExport($code), "Translation.csv", \Maatwebsite\Excel\Excel::CSV);
+
+        } else if ($form["file"] == "xls") {
+
+            $data = Excel::download(new TranslationExport($code), "Translation.xls", \Maatwebsite\Excel\Excel::XLS);
+
+        } else if ($form["file"] == "xlsx") {
+
+            $data = Excel::download(new TranslationExport($code), "Translation.xlsx", \Maatwebsite\Excel\Excel::XLSX);
+        }
+
+        return $data;
     }
 };
